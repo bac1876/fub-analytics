@@ -242,22 +242,17 @@
 }
 
 /* Outcome-colored cells */
-.converted-cell {
+.successful-cell {
   color: #059669;
   font-weight: 600;
 }
 
-.positive-cell {
+.nurture-cell {
   color: #2563eb;
   font-weight: 600;
 }
 
-.nurture-cell {
-  color: #d97706;
-  font-weight: 600;
-}
-
-.incomplete-cell {
+.failed-cell {
   color: #dc2626;
   font-weight: 600;
 }
@@ -265,6 +260,26 @@
 .rate-cell {
   color: var(--primary-600);
   font-weight: 700;
+}
+
+/* ISA Badge in table */
+.agent-name .isa-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+
+/* ISA Theme */
+.agent-comparison.isa-theme .comparison-header h3::before {
+  background: linear-gradient(180deg, #8b5cf6, #6366f1);
 }
 
 /* Highlight detail items */

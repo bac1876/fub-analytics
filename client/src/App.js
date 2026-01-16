@@ -3,6 +3,7 @@ import axios from 'axios';
 import Dashboard from './components/Dashboard';
 import DateRangePicker from './components/DateRangePicker';
 import AgentSelector from './components/AgentSelector';
+import AdminPanel from './components/AdminPanel';
 import './App.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api/analytics' : 'http://localhost:5000/api/analytics');
@@ -30,6 +31,8 @@ function App() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [viewMode, setViewMode] = useState('team'); // 'team' or 'personal'
+  const [dashboardType, setDashboardType] = useState('sales'); // 'sales' or 'isa'
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
@@ -38,7 +41,8 @@ function App() {
     try {
       const params = new URLSearchParams({
         start: dateRange.start,
-        end: dateRange.end
+        end: dateRange.end,
+        dashboardType: dashboardType
       });
       if (selectedUser) {
         params.append('userId', selectedUser);
@@ -52,7 +56,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange, selectedUser]);
+  }, [dateRange, selectedUser, dashboardType]);
 
   // Fetch users on mount
   useEffect(() => {
@@ -67,7 +71,7 @@ function App() {
     fetchUsers();
   }, []);
 
-  // Fetch metrics when date range or user changes
+  // Fetch metrics when date range, user, or dashboard type changes
   useEffect(() => {
     fetchMetrics();
   }, [fetchMetrics]);
@@ -101,6 +105,13 @@ function App() {
       setSelectedUser(null);
       setViewMode('team');
     }
+  };
+
+  // Toggle dashboard type
+  const toggleDashboardType = () => {
+    setDashboardType(prev => prev === 'sales' ? 'isa' : 'sales');
+    setSelectedUser(null);
+    setViewMode('team');
   };
 
   // Toggle dark mode with animation
@@ -139,19 +150,50 @@ function App() {
     document.body.classList.toggle('dark-mode', darkMode);
   }, [darkMode]);
 
+  // Handle ISA users updated
+  const handleIsaUsersUpdated = () => {
+    fetchMetrics();
+  };
+
   return (
     <div className={`app ${darkMode ? 'dark-mode' : ''}`}>
       <header className="app-header">
         <div className="header-left">
           <h1>FUB Analytics</h1>
-          <span className="subtitle">Follow Up Boss Conversion Metrics</span>
+          <span className="subtitle">
+            {dashboardType === 'sales' ? 'Sales Team Dashboard' : 'ISA Dashboard'}
+          </span>
         </div>
         <div className="header-right">
+          <div className="dashboard-switcher">
+            <button
+              className={`dashboard-tab ${dashboardType === 'sales' ? 'active' : ''}`}
+              onClick={() => dashboardType !== 'sales' && toggleDashboardType()}
+            >
+              Sales
+            </button>
+            <button
+              className={`dashboard-tab ${dashboardType === 'isa' ? 'active' : ''}`}
+              onClick={() => dashboardType !== 'isa' && toggleDashboardType()}
+            >
+              ISA
+            </button>
+          </div>
           <button
             className={`view-toggle ${viewMode}`}
             onClick={toggleViewMode}
           >
             {viewMode === 'team' ? 'Team View' : 'Personal View'}
+          </button>
+          <button
+            className="admin-btn"
+            onClick={() => setAdminPanelOpen(true)}
+            title="Admin Settings"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+            </svg>
           </button>
           <button
             ref={toggleRef}
@@ -204,8 +246,16 @@ function App() {
           viewMode={viewMode}
           selectedUser={selectedUser}
           users={users}
+          dashboardType={dashboardType}
         />
       ) : null}
+
+      <AdminPanel
+        isOpen={adminPanelOpen}
+        onClose={() => setAdminPanelOpen(false)}
+        users={users}
+        onIsaUsersUpdated={handleIsaUsersUpdated}
+      />
     </div>
   );
 }

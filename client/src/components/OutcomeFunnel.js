@@ -1,51 +1,69 @@
 import React from 'react';
 import './OutcomeFunnel.css';
 
-function OutcomeFunnel({ summary, outcomeCategories, byOutcome }) {
+function OutcomeFunnel({ summary, outcomeCategories, byOutcome, dashboardType = 'sales' }) {
   const total = summary.totalAppointments;
 
-  // Calculate cumulative values for funnel visualization
+  // Calculate cumulative values for funnel visualization (updated categories)
   const stages = [
     {
       label: 'Total Appointments',
       value: total,
-      color: '#64748b',
-      description: 'All appointments in period'
+      color: dashboardType === 'isa' ? '#8b5cf6' : '#64748b',
+      description: `All ${dashboardType === 'isa' ? 'ISA' : 'sales'} appointments`
     },
     {
-      label: 'Met with Client',
-      value: total - (outcomeCategories?.incomplete || 0) - (outcomeCategories?.noOutcome || 0),
+      label: 'Active Pipeline',
+      value: (outcomeCategories?.successful || 0) + (outcomeCategories?.nurture || 0),
       color: '#3b82f6',
-      description: 'Completed appointments'
+      description: `${outcomeCategories?.successful || 0} successful + ${outcomeCategories?.nurture || 0} nurture`
     },
     {
-      label: 'Positive Outcome',
-      value: (outcomeCategories?.converted || 0) + (outcomeCategories?.positive || 0),
+      label: 'Successful',
+      value: outcomeCategories?.successful || 0,
       color: '#10b981',
-      description: 'Likely + Showed Homes + Converted'
-    },
-    {
-      label: 'Signed/Converted',
-      value: outcomeCategories?.converted || 0,
-      color: '#059669',
-      description: 'Writing Offer + Signed'
+      description: 'Signed/Converted, Writing Offer, Scholarship'
     }
   ];
 
   const maxValue = Math.max(...stages.map(s => s.value), 1);
 
+  // Keywords for flexible outcome categorization (handles "Met- " prefix)
+  const OUTCOME_KEYWORDS = {
+    successful: ['signed', 'converted', 'writing offer', 'scholarship'],
+    nurture: ['likely opportunity', 'showed homes', 'rescheduled'],
+    failed: ['no outcome', 'unlikely opportunity', 'canceled', 'no show']
+  };
+
+  const getOutcomeCategory = (outcome) => {
+    if (!outcome) return 'failed';
+    const normalized = outcome.toLowerCase().trim();
+
+    if (OUTCOME_KEYWORDS.successful.some(kw => normalized.includes(kw))) {
+      return 'successful';
+    }
+    if (OUTCOME_KEYWORDS.nurture.some(kw => normalized.includes(kw))) {
+      return 'nurture';
+    }
+    return 'failed';
+  };
+
   return (
-    <div className="outcome-funnel">
+    <div className={`outcome-funnel ${dashboardType === 'isa' ? 'isa-theme' : ''}`}>
       <div className="funnel-header">
-        <h3>Appointment Outcome Funnel</h3>
+        <h3>{dashboardType === 'isa' ? 'ISA' : 'Sales'} Outcome Funnel</h3>
         <div className="funnel-stats">
-          <div className="stat">
-            <span className="stat-label">Met Rate</span>
-            <span className="stat-value">{summary.metRate}%</span>
+          <div className="stat success-stat">
+            <span className="stat-label">Success Rate</span>
+            <span className="stat-value">{summary.successRate}%</span>
           </div>
-          <div className="stat">
-            <span className="stat-label">Conversion Rate</span>
-            <span className="stat-value">{summary.conversionRate}%</span>
+          <div className="stat nurture-stat">
+            <span className="stat-label">Nurture Rate</span>
+            <span className="stat-value">{summary.nurtureRate}%</span>
+          </div>
+          <div className="stat failed-stat">
+            <span className="stat-label">Failed Rate</span>
+            <span className="stat-value">{summary.failedRate}%</span>
           </div>
         </div>
       </div>
@@ -84,23 +102,29 @@ function OutcomeFunnel({ summary, outcomeCategories, byOutcome }) {
         })}
       </div>
 
-      {/* Outcome Detail List */}
+      {/* Outcome Detail List - Grouped by category */}
       <div className="outcome-detail-list">
         <h4>Individual Outcomes</h4>
         <div className="outcome-items">
           {Object.entries(byOutcome.counts)
-            .sort(([, a], [, b]) => b - a)
+            .sort(([a], [b]) => {
+              // Sort by category, then by count
+              const catA = getOutcomeCategory(a);
+              const catB = getOutcomeCategory(b);
+              const catOrder = { successful: 0, nurture: 1, failed: 2, other: 3 };
+              if (catOrder[catA] !== catOrder[catB]) {
+                return catOrder[catA] - catOrder[catB];
+              }
+              return byOutcome.counts[b] - byOutcome.counts[a];
+            })
             .map(([outcome, count]) => {
               const pct = byOutcome.percentages[outcome];
-              const isPositive = outcome.includes('Signed') || outcome.includes('Writing') ||
-                outcome.includes('Likely') || outcome.includes('Showed');
-              const isNegative = outcome.includes('Canceled') || outcome.includes('No Show') ||
-                outcome.includes('Unlikely');
+              const category = getOutcomeCategory(outcome);
 
               return (
                 <div
                   key={outcome}
-                  className={`outcome-item ${isPositive ? 'positive' : ''} ${isNegative ? 'negative' : ''}`}
+                  className={`outcome-item ${category}`}
                 >
                   <span className="outcome-name">{outcome}</span>
                   <div className="outcome-stats">
@@ -109,7 +133,7 @@ function OutcomeFunnel({ summary, outcomeCategories, byOutcome }) {
                   </div>
                   <div className="outcome-bar">
                     <div
-                      className="outcome-bar-fill"
+                      className={`outcome-bar-fill ${category}`}
                       style={{ width: `${pct}%` }}
                     ></div>
                   </div>

@@ -16,21 +16,63 @@ function getDefaultDateRange() {
 }
 
 // Get all metrics for a date range
+// dashboardType query param: 'sales' (default) or 'isa'
 router.get('/metrics', async (req, res) => {
   try {
-    const { start, end, userId } = req.query;
+    const { start, end, userId, dashboardType } = req.query;
     const dateRange = start && end ? { start, end } : getDefaultDateRange();
 
     const metrics = await metricsService.calculateMetrics(
       dateRange.start,
       dateRange.end,
-      userId || null
+      userId || null,
+      dashboardType || 'sales'
     );
 
     res.json(metrics);
   } catch (error) {
     console.error('Error fetching metrics:', error);
     res.status(500).json({ error: 'Failed to fetch metrics', details: error.message });
+  }
+});
+
+// Get/Set ISA users
+router.get('/isa-users', async (req, res) => {
+  try {
+    const isaUserIds = metricsService.getIsaUserIds();
+    const users = await fubApi.getUsers();
+
+    // Return both ISA user IDs and full user details for those IDs
+    const isaUsers = users.filter(u => isaUserIds.includes(u.id));
+
+    res.json({
+      isaUserIds,
+      isaUsers: isaUsers.map(u => ({ id: u.id, name: u.name, email: u.email }))
+    });
+  } catch (error) {
+    console.error('Error fetching ISA users:', error);
+    res.status(500).json({ error: 'Failed to fetch ISA users', details: error.message });
+  }
+});
+
+router.post('/isa-users', express.json(), async (req, res) => {
+  try {
+    const { isaUserIds } = req.body;
+
+    if (!Array.isArray(isaUserIds)) {
+      return res.status(400).json({ error: 'isaUserIds must be an array' });
+    }
+
+    const success = metricsService.setIsaUserIds(isaUserIds);
+
+    if (success) {
+      res.json({ success: true, isaUserIds });
+    } else {
+      res.status(500).json({ error: 'Failed to save ISA users' });
+    }
+  } catch (error) {
+    console.error('Error saving ISA users:', error);
+    res.status(500).json({ error: 'Failed to save ISA users', details: error.message });
   }
 });
 

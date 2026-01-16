@@ -169,12 +169,17 @@
   border-color: var(--gray-200);
 }
 
-.outcome-item.positive {
+.outcome-item.successful {
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border-color: #a7f3d0;
 }
 
-.outcome-item.negative {
+.outcome-item.nurture {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #93c5fd;
+}
+
+.outcome-item.failed {
   background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
   border-color: #fecaca;
 }
@@ -220,12 +225,34 @@
   transition: width 0.5s ease;
 }
 
-.outcome-item.positive .outcome-bar-fill {
+.outcome-bar-fill.successful {
   background: linear-gradient(90deg, #10b981, #059669);
 }
 
-.outcome-item.negative .outcome-bar-fill {
+.outcome-bar-fill.nurture {
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.outcome-bar-fill.failed {
   background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+/* ISA Theme */
+.outcome-funnel.isa-theme .funnel-header h3::before {
+  background: linear-gradient(180deg, #8b5cf6, #6366f1);
+}
+
+/* Stats coloring */
+.success-stat .stat-value {
+  color: #10b981 !important;
+}
+
+.nurture-stat .stat-value {
+  color: #3b82f6 !important;
+}
+
+.failed-stat .stat-value {
+  color: #ef4444 !important;
 }
 
 @media (max-width: 768px) {
@@ -311,21 +338,30 @@
   border-color: #475569;
 }
 
-.dark-mode .outcome-item.positive {
+.dark-mode .outcome-item.successful {
   background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   border-color: #047857;
 }
 
-.dark-mode .outcome-item.positive .outcome-name {
+.dark-mode .outcome-item.successful .outcome-name {
   color: #a7f3d0;
 }
 
-.dark-mode .outcome-item.negative {
+.dark-mode .outcome-item.nurture {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+  border-color: #2563eb;
+}
+
+.dark-mode .outcome-item.nurture .outcome-name {
+  color: #93c5fd;
+}
+
+.dark-mode .outcome-item.failed {
   background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
   border-color: #b91c1c;
 }
 
-.dark-mode .outcome-item.negative .outcome-name {
+.dark-mode .outcome-item.failed .outcome-name {
   color: #fecaca;
 }
 

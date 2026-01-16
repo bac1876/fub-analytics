@@ -7,22 +7,29 @@ import './Dashboard.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
-// Outcome colors - semantic meaning
+// Outcome colors - semantic meaning (handles both with and without "Met- " prefix)
 const OUTCOME_COLORS = {
-  'Met- Signed/Converted': '#10b981',    // Green - Success
-  'Met- Writing Offer': '#22c55e',       // Light Green - Near Success
-  'Met- Likely Opportunity': '#3b82f6',  // Blue - Positive
-  'Met- Showed Homes': '#60a5fa',        // Light Blue - Positive
-  'Met- Nurture': '#f59e0b',             // Yellow - Nurture
-  'Met- Unlikely Opportunity': '#fb923c', // Orange - Lower priority
-  'Agent Incomplete': '#94a3b8',          // Gray - Incomplete
-  'Rescheduled': '#a78bfa',               // Purple - Rescheduled
-  'Canceled/No Show': '#ef4444',          // Red - Negative
-  'Scholarship Accepted': '#06b6d4',      // Cyan - Special
-  'No Outcome': '#cbd5e1'                 // Light Gray - No data
+  // Successful outcomes (green shades)
+  'Signed/Converted': '#10b981',
+  'Met- Signed/Converted': '#10b981',
+  'Writing Offer': '#22c55e',
+  'Met- Writing Offer': '#22c55e',
+  'Scholarship Accepted': '#06b6d4',
+  'Met- Scholarship Accepted': '#06b6d4',
+  // Nurture outcomes (blue/purple shades)
+  'Likely Opportunity': '#3b82f6',
+  'Met- Likely Opportunity': '#3b82f6',
+  'Showed Homes': '#60a5fa',
+  'Met- Showed Homes': '#60a5fa',
+  'Rescheduled': '#a78bfa',
+  // Failed outcomes (red/gray shades)
+  'No Outcome': '#cbd5e1',
+  'Unlikely Opportunity': '#fb923c',
+  'Met- Unlikely Opportunity': '#fb923c',
+  'Canceled/No Show': '#ef4444'
 };
 
-function Dashboard({ metrics, viewMode, selectedUser, users }) {
+function Dashboard({ metrics, viewMode, selectedUser, users, dashboardType = 'sales' }) {
   if (!metrics) return null;
 
   const { summary, outcomeCategories, byType, byOutcome, byAgent } = metrics;
@@ -49,8 +56,10 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
     }]
   };
 
-  // Type colors
-  const typeColors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+  // Type colors - different for ISA vs Sales
+  const typeColors = dashboardType === 'isa'
+    ? ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'] // Purple shades for ISA
+    : ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4']; // Original for Sales
 
   // Appointment Types Chart Data
   const typeChartData = {
@@ -83,9 +92,12 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
     }
   };
 
+  // Dashboard theme based on type
+  const dashboardTheme = dashboardType === 'isa' ? 'isa-theme' : 'sales-theme';
+
   return (
-    <div className="dashboard">
-      {/* Summary Cards */}
+    <div className={`dashboard ${dashboardTheme}`}>
+      {/* Summary Cards - Updated for new categories */}
       <div className="summary-cards">
         <div className="summary-card appointments">
           <div className="card-icon">📅</div>
@@ -94,25 +106,34 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
             <div className="card-value">{summary.totalAppointments}</div>
           </div>
         </div>
-        <div className="summary-card converted">
+        <div className="summary-card successful">
           <div className="card-icon">✅</div>
           <div className="card-content">
-            <h3>Signed/Converted</h3>
-            <div className="card-value">{outcomeCategories?.converted || 0}</div>
+            <h3>Successful</h3>
+            <div className="card-value">{outcomeCategories?.successful || 0}</div>
+            <div className="card-subtitle">
+              {summary.successRate}% rate
+            </div>
           </div>
         </div>
-        <div className="summary-card positive">
-          <div className="card-icon">📈</div>
+        <div className="summary-card nurture">
+          <div className="card-icon">🌱</div>
           <div className="card-content">
-            <h3>Positive Outcomes</h3>
-            <div className="card-value">{(outcomeCategories?.converted || 0) + (outcomeCategories?.positive || 0)}</div>
+            <h3>Nurture</h3>
+            <div className="card-value">{outcomeCategories?.nurture || 0}</div>
+            <div className="card-subtitle">
+              {summary.nurtureRate}% rate
+            </div>
           </div>
         </div>
-        <div className="summary-card rate">
-          <div className="card-icon">🎯</div>
+        <div className="summary-card failed">
+          <div className="card-icon">❌</div>
           <div className="card-content">
-            <h3>Conversion Rate</h3>
-            <div className="card-value">{summary.conversionRate}%</div>
+            <h3>Failed/Dead</h3>
+            <div className="card-value">{outcomeCategories?.failed || 0}</div>
+            <div className="card-subtitle">
+              {summary.failedRate}% rate
+            </div>
           </div>
         </div>
       </div>
@@ -122,6 +143,7 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
         summary={summary}
         outcomeCategories={outcomeCategories}
         byOutcome={byOutcome}
+        dashboardType={dashboardType}
       />
 
       {/* Charts Row */}
@@ -149,13 +171,13 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
               </div>
             </>
           ) : (
-            <div className="no-data">No outcome data available</div>
+            <div className="no-data">No outcome data available for {dashboardType === 'isa' ? 'ISA' : 'Sales'} appointments</div>
           )}
         </div>
 
         {/* Appointment Types */}
         <div className="chart-container">
-          <h3>Appointments by Type</h3>
+          <h3>{dashboardType === 'isa' ? 'ISA Appointment Types' : 'Appointment Types'}</h3>
           {Object.keys(byType.counts).length > 0 ? (
             <>
               <div className="chart-wrapper">
@@ -178,58 +200,52 @@ function Dashboard({ metrics, viewMode, selectedUser, users }) {
               </div>
             </>
           ) : (
-            <div className="no-data">No appointment type data available</div>
+            <div className="no-data">No {dashboardType === 'isa' ? 'ISA' : 'Sales'} appointment types found</div>
           )}
         </div>
       </div>
 
-      {/* Outcome Breakdown Cards */}
+      {/* Outcome Breakdown Cards - Updated categories */}
       <div className="outcome-breakdown">
         <h3>Outcome Categories</h3>
         <div className="outcome-cards">
           <div className="outcome-card success">
             <div className="outcome-header">
               <span className="outcome-icon">🏆</span>
-              <span className="outcome-title">Converted</span>
+              <span className="outcome-title">Successful</span>
             </div>
-            <div className="outcome-value">{outcomeCategories?.converted || 0}</div>
-            <div className="outcome-detail">Signed/Converted + Writing Offer</div>
+            <div className="outcome-value">{outcomeCategories?.successful || 0}</div>
+            <div className="outcome-detail">Signed/Converted, Writing Offer, Scholarship Accepted</div>
           </div>
-          <div className="outcome-card positive">
-            <div className="outcome-header">
-              <span className="outcome-icon">👍</span>
-              <span className="outcome-title">Positive</span>
-            </div>
-            <div className="outcome-value">{outcomeCategories?.positive || 0}</div>
-            <div className="outcome-detail">Likely Opportunity + Showed Homes</div>
-          </div>
-          <div className="outcome-card nurture">
+          <div className="outcome-card nurture-card">
             <div className="outcome-header">
               <span className="outcome-icon">🌱</span>
               <span className="outcome-title">Nurture</span>
             </div>
             <div className="outcome-value">{outcomeCategories?.nurture || 0}</div>
-            <div className="outcome-detail">Nurture + Unlikely Opportunity</div>
+            <div className="outcome-detail">Likely Opportunity, Showed Homes, Rescheduled</div>
           </div>
-          <div className="outcome-card incomplete">
+          <div className="outcome-card failed-card">
             <div className="outcome-header">
-              <span className="outcome-icon">⏸️</span>
-              <span className="outcome-title">Incomplete</span>
+              <span className="outcome-icon">❌</span>
+              <span className="outcome-title">Failed/Dead</span>
             </div>
-            <div className="outcome-value">{outcomeCategories?.incomplete || 0}</div>
-            <div className="outcome-detail">Incomplete + Rescheduled + No Show</div>
+            <div className="outcome-value">{outcomeCategories?.failed || 0}</div>
+            <div className="outcome-detail">No Outcome, Unlikely Opportunity, Canceled/No Show</div>
           </div>
         </div>
       </div>
 
       {/* Agent Comparison (Team View) */}
       {viewMode === 'team' && Object.keys(byAgent).length > 0 && (
-        <AgentComparison byAgent={byAgent} />
+        <AgentComparison byAgent={byAgent} dashboardType={dashboardType} />
       )}
 
       {/* Date Range Info */}
       <div className="date-range-info">
-        <p>Data from {summary.dateRange.start} to {summary.dateRange.end}</p>
+        <p>
+          {dashboardType === 'isa' ? 'ISA' : 'Sales'} data from {summary.dateRange.start} to {summary.dateRange.end}
+        </p>
         <p className="generated-at">Generated at {new Date(metrics.generatedAt).toLocaleString()}</p>
       </div>
     </div>
