@@ -152,6 +152,34 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
     byOutcome[outcomeName] = (byOutcome[outcomeName] || 0) + 1;
   });
 
+  // Calculate by-type-outcome breakdown (outcomes per appointment type)
+  const byTypeOutcome = {};
+  filteredAppointments.forEach(apt => {
+    const typeName = apt.type || 'Unknown';
+    const outcomeName = apt.outcome || 'No Outcome';
+
+    if (!byTypeOutcome[typeName]) {
+      byTypeOutcome[typeName] = {
+        counts: {},
+        total: 0,
+        outcomeCategories: { successful: 0, nurture: 0, failed: 0 }
+      };
+    }
+
+    byTypeOutcome[typeName].counts[outcomeName] = (byTypeOutcome[typeName].counts[outcomeName] || 0) + 1;
+    byTypeOutcome[typeName].total++;
+    byTypeOutcome[typeName].outcomeCategories[getOutcomeCategory(outcomeName)]++;
+  });
+
+  // Add percentages for each type's outcomes
+  Object.keys(byTypeOutcome).forEach(typeName => {
+    const type = byTypeOutcome[typeName];
+    type.percentages = {};
+    Object.entries(type.counts).forEach(([outcome, count]) => {
+      type.percentages[outcome] = type.total > 0 ? ((count / type.total) * 100).toFixed(1) : '0';
+    });
+  });
+
   // Calculate by-agent breakdown
   const byAgent = {};
   filteredAppointments.forEach(apt => {
@@ -248,6 +276,7 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
       counts: byOutcome,
       percentages: outcomePercentages
     },
+    byTypeOutcome,
     byAgent,
     metadata: {
       appointmentTypes: Object.keys(byType),
