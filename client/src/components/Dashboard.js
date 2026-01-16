@@ -1,11 +1,11 @@
 import React from 'react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import OutcomeFunnel from './OutcomeFunnel';
 import TypeOutcomeBreakdown from './TypeOutcomeBreakdown';
 import AgentComparison from './AgentComparison';
 import './Dashboard.css';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 function Dashboard({ metrics, viewMode, selectedUser, users, dashboardType = 'sales' }) {
   if (!metrics) return null;

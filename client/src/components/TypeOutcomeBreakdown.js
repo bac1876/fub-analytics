@@ -75,8 +75,14 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
       <h3>Outcomes by Appointment Type</h3>
       <div className="type-cards-grid">
         {sortedTypes.map(([typeName, data]) => {
+          // Defensive checks for data structure
+          const counts = data?.counts || {};
+          const total = data?.total || 0;
+          const outcomeCategories = data?.outcomeCategories || { successful: 0, nurture: 0, failed: 0 };
+          const percentages = data?.percentages || {};
+
           // Sort outcomes by count descending
-          const sortedOutcomes = Object.entries(data.counts)
+          const sortedOutcomes = Object.entries(counts)
             .sort(([, a], [, b]) => b - a);
 
           const chartData = {
@@ -89,8 +95,8 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
           };
 
           // Calculate success rate for this type
-          const successRate = data.total > 0
-            ? ((data.outcomeCategories.successful / data.total) * 100).toFixed(0)
+          const successRate = total > 0
+            ? ((outcomeCategories.successful / total) * 100).toFixed(0)
             : 0;
 
           return (
@@ -98,7 +104,7 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
               <div className="type-card-header">
                 <h4 className="type-name">{typeName}</h4>
                 <div className="type-stats">
-                  <span className="type-total">{data.total} appointments</span>
+                  <span className="type-total">{total} appointments</span>
                   <span className="type-success-rate">{successRate}% success</span>
                 </div>
               </div>
@@ -107,7 +113,7 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
                 <div className="mini-chart-wrapper">
                   <Doughnut data={chartData} options={chartOptions} />
                   <div className="chart-center-label">
-                    <span className="center-value">{data.total}</span>
+                    <span className="center-value">{total}</span>
                     <span className="center-text">total</span>
                   </div>
                 </div>
@@ -122,7 +128,7 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
                       <span className="legend-name">{outcome}</span>
                       <span className="legend-stats">
                         <span className="legend-count">{count}</span>
-                        <span className="legend-pct">{data.percentages[outcome]}%</span>
+                        <span className="legend-pct">{percentages[outcome] || 0}%</span>
                       </span>
                     </div>
                   ))}
@@ -133,24 +139,24 @@ function TypeOutcomeBreakdown({ byTypeOutcome, dashboardType = 'sales' }) {
               <div className="category-bar">
                 <div
                   className="category-segment successful"
-                  style={{ width: `${data.total > 0 ? (data.outcomeCategories.successful / data.total) * 100 : 0}%` }}
-                  title={`Successful: ${data.outcomeCategories.successful}`}
+                  style={{ width: `${total > 0 ? (outcomeCategories.successful / total) * 100 : 0}%` }}
+                  title={`Successful: ${outcomeCategories.successful}`}
                 ></div>
                 <div
                   className="category-segment nurture"
-                  style={{ width: `${data.total > 0 ? (data.outcomeCategories.nurture / data.total) * 100 : 0}%` }}
-                  title={`Nurture: ${data.outcomeCategories.nurture}`}
+                  style={{ width: `${total > 0 ? (outcomeCategories.nurture / total) * 100 : 0}%` }}
+                  title={`Nurture: ${outcomeCategories.nurture}`}
                 ></div>
                 <div
                   className="category-segment failed"
-                  style={{ width: `${data.total > 0 ? (data.outcomeCategories.failed / data.total) * 100 : 0}%` }}
-                  title={`Failed: ${data.outcomeCategories.failed}`}
+                  style={{ width: `${total > 0 ? (outcomeCategories.failed / total) * 100 : 0}%` }}
+                  title={`Failed: ${outcomeCategories.failed}`}
                 ></div>
               </div>
               <div className="category-labels">
-                <span className="cat-label successful">✓ {data.outcomeCategories.successful}</span>
-                <span className="cat-label nurture">↻ {data.outcomeCategories.nurture}</span>
-                <span className="cat-label failed">✗ {data.outcomeCategories.failed}</span>
+                <span className="cat-label successful">✓ {outcomeCategories.successful}</span>
+                <span className="cat-label nurture">↻ {outcomeCategories.nurture}</span>
+                <span className="cat-label failed">✗ {outcomeCategories.failed}</span>
               </div>
             </div>
           );
