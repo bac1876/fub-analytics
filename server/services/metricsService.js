@@ -1,4 +1,5 @@
 const fubApi = require('./fubApi');
+const outcomeDb = require('./outcomeDb');
 const fs = require('fs');
 const path = require('path');
 
@@ -97,6 +98,26 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
     fubApi.getAppointments(startDate, endDate, userId),
     fubApi.getUsers()
   ]);
+
+  // Get local outcomes and merge with appointments
+  // This is the shadow tracking - local outcomes override FUB outcomes
+  const appointmentIds = appointments.map(apt => apt.id);
+  const localOutcomes = outcomeDb.getOutcomesForAppointments(appointmentIds);
+  const localOutcomeMap = {};
+  localOutcomes.forEach(o => { 
+    localOutcomeMap[o.fub_appointment_id] = o; 
+  });
+
+  // Merge local outcomes into appointments
+  appointments.forEach(apt => {
+    const localOutcome = localOutcomeMap[apt.id];
+    if (localOutcome && localOutcome.outcome_name) {
+      // Override FUB outcome with local outcome
+      apt.outcome = localOutcome.outcome_name;
+      apt.outcomeId = localOutcome.outcome_id;
+      apt._localOutcome = true; // Flag for debugging
+    }
+  });
 
   // Get ISA user IDs
   const isaUserIds = getIsaUserIds();

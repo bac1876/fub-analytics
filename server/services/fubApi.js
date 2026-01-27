@@ -159,7 +159,7 @@ async function getAppointmentTypes() {
 async function getAppointmentOutcomes() {
   try {
     const response = await fubClient.get('/appointmentOutcomes');
-    return response.data.appointmentOutcomes || [];
+    return response.data.appointmentoutcomes || [];
   } catch (error) {
     console.error('Error fetching appointment outcomes:', error.message);
     return [];

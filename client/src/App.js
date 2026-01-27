@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import DateRangePicker from './components/DateRangePicker';
 import AgentSelector from './components/AgentSelector';
 import AdminPanel from './components/AdminPanel';
+import OutcomeManager from './components/OutcomeManager';
 import './App.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api/analytics' : 'http://localhost:5000/api/analytics');
@@ -33,6 +34,7 @@ function App() {
   const [viewMode, setViewMode] = useState('team'); // 'team' or 'personal'
   const [dashboardType, setDashboardType] = useState('sales'); // 'sales' or 'isa'
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'outcomes'
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
@@ -160,31 +162,46 @@ function App() {
       <header className="app-header">
         <div className="header-left">
           <h1>FUB Analytics</h1>
-          <span className="subtitle">
-            {dashboardType === 'sales' ? 'Sales Team Dashboard' : 'ISA Dashboard'}
-          </span>
-        </div>
-        <div className="header-right">
-          <div className="dashboard-switcher">
+          <div className="main-tabs">
             <button
-              className={`dashboard-tab ${dashboardType === 'sales' ? 'active' : ''}`}
-              onClick={() => dashboardType !== 'sales' && toggleDashboardType()}
+              className={`main-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
             >
-              Sales
+              📊 Dashboard
             </button>
             <button
-              className={`dashboard-tab ${dashboardType === 'isa' ? 'active' : ''}`}
-              onClick={() => dashboardType !== 'isa' && toggleDashboardType()}
+              className={`main-tab ${activeTab === 'outcomes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('outcomes')}
             >
-              ISA
+              📋 Outcome Tracker
             </button>
           </div>
-          <button
-            className={`view-toggle ${viewMode}`}
-            onClick={toggleViewMode}
-          >
-            {viewMode === 'team' ? 'Team View' : 'Personal View'}
-          </button>
+        </div>
+        <div className="header-right">
+          {activeTab === 'dashboard' && (
+            <>
+              <div className="dashboard-switcher">
+                <button
+                  className={`dashboard-tab ${dashboardType === 'sales' ? 'active' : ''}`}
+                  onClick={() => dashboardType !== 'sales' && toggleDashboardType()}
+                >
+                  Sales
+                </button>
+                <button
+                  className={`dashboard-tab ${dashboardType === 'isa' ? 'active' : ''}`}
+                  onClick={() => dashboardType !== 'isa' && toggleDashboardType()}
+                >
+                  ISA
+                </button>
+              </div>
+              <button
+                className={`view-toggle ${viewMode}`}
+                onClick={toggleViewMode}
+              >
+                {viewMode === 'team' ? 'Team View' : 'Personal View'}
+              </button>
+            </>
+          )}
           <button
             className="admin-btn"
             onClick={() => setAdminPanelOpen(true)}
@@ -216,39 +233,45 @@ function App() {
         </div>
       </header>
 
-      <div className="controls">
-        <DateRangePicker
-          dateRange={dateRange}
-          onChange={handleDateRangeChange}
-        />
-        <AgentSelector
-          users={users}
-          selectedUser={selectedUser}
-          onSelect={handleUserSelect}
-        />
-      </div>
+      {activeTab === 'dashboard' && (
+        <>
+          <div className="controls">
+            <DateRangePicker
+              dateRange={dateRange}
+              onChange={handleDateRangeChange}
+            />
+            <AgentSelector
+              users={users}
+              selectedUser={selectedUser}
+              onSelect={handleUserSelect}
+            />
+          </div>
 
-      {error && (
-        <div className="error-banner">
-          <span>Error: {error}</span>
-          <button onClick={fetchMetrics}>Retry</button>
-        </div>
+          {error && (
+            <div className="error-banner">
+              <span>Error: {error}</span>
+              <button onClick={fetchMetrics}>Retry</button>
+            </div>
+          )}
+
+          {loading && !metrics ? (
+            <div className="loading">
+              <div className="spinner"></div>
+              <p>Loading metrics from Follow Up Boss...</p>
+            </div>
+          ) : metrics ? (
+            <Dashboard
+              metrics={metrics}
+              viewMode={viewMode}
+              selectedUser={selectedUser}
+              users={users}
+              dashboardType={dashboardType}
+            />
+          ) : null}
+        </>
       )}
 
-      {loading && !metrics ? (
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading metrics from Follow Up Boss...</p>
-        </div>
-      ) : metrics ? (
-        <Dashboard
-          metrics={metrics}
-          viewMode={viewMode}
-          selectedUser={selectedUser}
-          users={users}
-          dashboardType={dashboardType}
-        />
-      ) : null}
+      {activeTab === 'outcomes' && <OutcomeManager />}
 
       <AdminPanel
         isOpen={adminPanelOpen}
