@@ -166,6 +166,17 @@ async function getAppointmentOutcomes() {
   }
 }
 
+// Update an appointment (e.g., set outcomeId)
+async function updateAppointment(appointmentId, data) {
+  try {
+    const response = await fubClient.put(`/appointments/${appointmentId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating appointment ${appointmentId}:`, error.response?.data || error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   fubClient,
   getUsers,
@@ -176,5 +187,6 @@ module.exports = {
   getStages,
   getAppointmentTypes,
   getAppointmentOutcomes,
+  updateAppointment,
   fetchAllPages
 };

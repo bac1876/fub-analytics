@@ -1,8 +1,8 @@
 /**
- * Local Outcome Tracking Routes
+ * Outcome Tracking Routes
  * 
- * These endpoints manage appointment outcomes LOCALLY, bypassing FUB's
- * email notification system. Updates here don't touch FUB at all.
+ * These endpoints manage appointment outcomes. When an outcome is set,
+ * it updates FUB via the API AND saves locally as a cache/backup.
  */
 
 const express = require('express');
@@ -54,10 +54,10 @@ router.get('/types', async (req, res) => {
 
 /**
  * POST /api/outcomes/bulk
- * Set multiple outcomes at once
+ * Set multiple outcomes at once — updates both FUB and local DB
  * Body: { outcomes: [{ fubAppointmentId, outcomeId, outcomeName, notes?, updatedBy? }] }
  */
-router.post('/bulk', express.json(), (req, res) => {
+router.post('/bulk', express.json(), async (req, res) => {
   try {
     const { outcomes } = req.body;
 
@@ -65,8 +65,22 @@ router.post('/bulk', express.json(), (req, res) => {
       return res.status(400).json({ error: 'outcomes array is required' });
     }
 
+    // Update FUB for each outcome
+    const fubResults = [];
+    for (const o of outcomes) {
+      try {
+        await fubApi.updateAppointment(o.fubAppointmentId, { outcomeId: parseInt(o.outcomeId) });
+        fubResults.push({ id: o.fubAppointmentId, synced: true });
+      } catch (err) {
+        fubResults.push({ id: o.fubAppointmentId, synced: false, error: err.response?.data?.errorMessage || err.message });
+      }
+    }
+
+    // Always save locally too
     const count = outcomeDb.setOutcomesBulk(outcomes);
-    res.json({ success: true, updated: count });
+    const fubSynced = fubResults.filter(r => r.synced).length;
+
+    res.json({ success: true, updated: count, fubSynced, fubTotal: outcomes.length, fubResults });
   } catch (error) {
     console.error('Error bulk updating outcomes:', error);
     res.status(500).json({ error: 'Failed to bulk update outcomes', details: error.message });
@@ -142,10 +156,10 @@ router.get('/:appointmentId', (req, res) => {
 
 /**
  * PUT /api/outcomes/:appointmentId
- * Set/update local outcome for an appointment
+ * Set outcome for an appointment — updates BOTH FUB and local DB
  * Body: { outcomeId, outcomeName, notes?, updatedBy? }
  */
-router.put('/:appointmentId', express.json(), (req, res) => {
+router.put('/:appointmentId', express.json(), async (req, res) => {
   try {
     const { appointmentId } = req.params;
     const { outcomeId, outcomeName, notes, updatedBy } = req.body;
@@ -154,8 +168,23 @@ router.put('/:appointmentId', express.json(), (req, res) => {
       return res.status(400).json({ error: 'outcomeId and outcomeName are required' });
     }
 
+    const aptId = parseInt(appointmentId);
+
+    // 1. Update FUB first (source of truth)
+    let fubUpdated = false;
+    let fubError = null;
+    try {
+      await fubApi.updateAppointment(aptId, { outcomeId: parseInt(outcomeId) });
+      fubUpdated = true;
+      console.log(`✅ FUB updated: appointment ${aptId} → outcome ${outcomeName} (${outcomeId})`);
+    } catch (err) {
+      fubError = err.response?.data?.errorMessage || err.message;
+      console.error(`⚠️ FUB update failed for appointment ${aptId}:`, fubError);
+    }
+
+    // 2. Always save locally too (serves as cache + backup)
     const success = outcomeDb.setOutcome(
-      parseInt(appointmentId),
+      aptId,
       outcomeId,
       outcomeName,
       notes || null,
@@ -163,10 +192,15 @@ router.put('/:appointmentId', express.json(), (req, res) => {
     );
 
     if (success) {
-      const updated = outcomeDb.getOutcome(parseInt(appointmentId));
-      res.json({ success: true, outcome: updated });
+      const updated = outcomeDb.getOutcome(aptId);
+      res.json({
+        success: true,
+        outcome: updated,
+        fubSynced: fubUpdated,
+        fubError: fubError
+      });
     } else {
-      res.status(500).json({ error: 'Failed to update outcome' });
+      res.status(500).json({ error: 'Failed to update local outcome' });
     }
   } catch (error) {
     console.error('Error updating outcome:', error);
