@@ -166,9 +166,27 @@ async function getAppointmentOutcomes() {
   }
 }
 
+// Get a single appointment by ID
+async function getAppointment(appointmentId) {
+  try {
+    const response = await fubClient.get(`/appointments/${appointmentId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching appointment ${appointmentId}:`, error.response?.data || error.message);
+    throw error;
+  }
+}
+
 // Update an appointment (e.g., set outcomeId)
+// FUB requires start/end dates on every PUT, so we fetch first if needed
 async function updateAppointment(appointmentId, data) {
   try {
+    // If start/end not provided, fetch the appointment first
+    if (!data.start || !data.end) {
+      const existing = await getAppointment(appointmentId);
+      data.start = data.start || existing.start;
+      data.end = data.end || existing.end;
+    }
     const response = await fubClient.put(`/appointments/${appointmentId}`, data);
     return response.data;
   } catch (error) {
