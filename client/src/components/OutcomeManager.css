@@ -212,6 +212,80 @@
   font-style: italic;
 }
 
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #3b82f6;
+}
+
+.tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+/* Outcome Badge */
+.outcome-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.outcome-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.outcome-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.outcome-nurture {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.outcome-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.edit-btn {
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.edit-btn:hover {
+  opacity: 1;
+}
+
 /* Info Footer */
 .info-footer {
   margin-top: 24px;

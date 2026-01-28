@@ -126,11 +126,74 @@ router.get('/appointments/pending', async (req, res) => {
     res.json({
       total: pastAppointments.length,
       pending: pending.length,
-      appointments: pending // No limit - show all pending
+      appointments: pending
     });
   } catch (error) {
     console.error('Error fetching pending appointments:', error);
     res.status(500).json({ error: 'Failed to fetch pending appointments', details: error.message });
+  }
+});
+
+/**
+ * GET /api/outcomes/appointments/completed
+ * Get appointments that have outcomes set (either in FUB or locally)
+ */
+router.get('/appointments/completed', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - parseInt(days));
+    
+    const appointments = await fubApi.getAppointments(
+      start.toISOString().split('T')[0],
+      end.toISOString().split('T')[0]
+    );
+
+    // Get FUB outcome names
+    let fubOutcomes = [];
+    try {
+      fubOutcomes = await fubApi.getAppointmentOutcomes();
+    } catch (e) { /* ignore */ }
+    const outcomeNameMap = {};
+    fubOutcomes.forEach(o => { outcomeNameMap[o.id] = o.name; });
+
+    // Filter to past appointments only
+    const now = new Date();
+    const pastAppointments = appointments.filter(apt => new Date(apt.end || apt.start) < now);
+
+    // Get local outcomes
+    const appointmentIds = pastAppointments.map(apt => apt.id);
+    const localOutcomes = outcomeDb.getOutcomesForAppointments(appointmentIds);
+    const localOutcomeMap = {};
+    localOutcomes.forEach(o => { localOutcomeMap[o.fub_appointment_id] = o; });
+
+    // Find appointments WITH outcomes (local or FUB)
+    const completed = pastAppointments.filter(apt => {
+      const hasLocalOutcome = localOutcomeMap[apt.id];
+      const hasFubOutcome = apt.outcomeId && apt.outcomeId !== null;
+      return hasLocalOutcome || hasFubOutcome;
+    }).map(apt => {
+      const local = localOutcomeMap[apt.id];
+      // Prefer local outcome, fall back to FUB
+      const outcomeName = local ? local.outcome_name : (outcomeNameMap[apt.outcomeId] || 'Unknown');
+      const outcomeId = local ? local.outcome_id : apt.outcomeId;
+      return {
+        ...apt,
+        outcomeName,
+        outcomeId,
+        outcomeSource: local ? 'local' : 'fub'
+      };
+    });
+
+    res.json({
+      total: completed.length,
+      appointments: completed
+    });
+  } catch (error) {
+    console.error('Error fetching completed appointments:', error);
+    res.status(500).json({ error: 'Failed to fetch completed appointments', details: error.message });
   }
 });
 
@@ -221,6 +284,34 @@ router.delete('/:appointmentId', (req, res) => {
   } catch (error) {
     console.error('Error deleting outcome:', error);
     res.status(500).json({ error: 'Failed to delete outcome', details: error.message });
+  }
+});
+
+/**
+ * POST /api/outcomes/sync-to-fub
+ * One-time sync: push all local outcomes to FUB
+ */
+router.post('/sync-to-fub', express.json(), async (req, res) => {
+  try {
+    const allOutcomes = outcomeDb.getAllOutcomes();
+    const results = [];
+
+    for (const o of allOutcomes) {
+      try {
+        await fubApi.updateAppointment(o.fub_appointment_id, { outcomeId: parseInt(o.outcome_id) });
+        results.push({ id: o.fub_appointment_id, synced: true, outcome: o.outcome_name });
+      } catch (err) {
+        results.push({ id: o.fub_appointment_id, synced: false, error: err.response?.data?.errorMessage || err.message });
+      }
+    }
+
+    const synced = results.filter(r => r.synced).length;
+    console.log(`🔄 Sync to FUB: ${synced}/${results.length} outcomes synced`);
+
+    res.json({ total: results.length, synced, failed: results.length - synced, results });
+  } catch (error) {
+    console.error('Error syncing to FUB:', error);
+    res.status(500).json({ error: 'Failed to sync', details: error.message });
   }
 });
 
