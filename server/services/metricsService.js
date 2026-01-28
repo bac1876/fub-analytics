@@ -94,10 +94,22 @@ function setIsaUserIds(userIds) {
 // dashboardType: 'sales' (default) or 'isa'
 async function calculateMetrics(startDate, endDate, userId = null, dashboardType = 'sales') {
   // Fetch all required data in parallel
-  const [appointments, users] = await Promise.all([
+  const [appointments, users, fubOutcomes] = await Promise.all([
     fubApi.getAppointments(startDate, endDate, userId),
-    fubApi.getUsers()
+    fubApi.getUsers(),
+    fubApi.getAppointmentOutcomes().catch(() => [])
   ]);
+
+  // Build outcome name lookup from FUB
+  const outcomeNameMap = {};
+  fubOutcomes.forEach(o => { outcomeNameMap[o.id] = o.name; });
+
+  // Resolve outcome names from outcomeId
+  appointments.forEach(apt => {
+    if (!apt.outcome && apt.outcomeId && outcomeNameMap[apt.outcomeId]) {
+      apt.outcome = outcomeNameMap[apt.outcomeId];
+    }
+  });
 
   // Get local outcomes and merge with appointments
   // This is the shadow tracking - local outcomes override FUB outcomes
@@ -108,14 +120,13 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
     localOutcomeMap[o.fub_appointment_id] = o; 
   });
 
-  // Merge local outcomes into appointments
+  // Merge local outcomes into appointments (local overrides FUB)
   appointments.forEach(apt => {
     const localOutcome = localOutcomeMap[apt.id];
     if (localOutcome && localOutcome.outcome_name) {
-      // Override FUB outcome with local outcome
       apt.outcome = localOutcome.outcome_name;
       apt.outcomeId = localOutcome.outcome_id;
-      apt._localOutcome = true; // Flag for debugging
+      apt._localOutcome = true;
     }
   });
 
@@ -131,9 +142,43 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
     };
   });
 
+  // Resolve type names from typeId using FUB appointment types
+  let appointmentTypes = [];
+  try {
+    appointmentTypes = await fubApi.getAppointmentTypes();
+  } catch (e) {
+    console.warn('Could not fetch appointment types:', e.message);
+  }
+  const typeMap = {};
+  appointmentTypes.forEach(t => { typeMap[t.id] = t.name; });
+
+  // Enrich appointments with resolved type name
+  appointments.forEach(apt => {
+    if (!apt.type && apt.typeId && typeMap[apt.typeId]) {
+      apt.type = typeMap[apt.typeId];
+    }
+  });
+
   // Filter appointments by type based on dashboard
+  // If no appointment types are configured in FUB, skip type filtering (show all)
   const allowedTypes = dashboardType === 'isa' ? ISA_APPOINTMENT_TYPES : SALES_APPOINTMENT_TYPES;
+  const hasTypeData = appointmentTypes.length > 0;
+
   const filteredAppointments = appointments.filter(apt => {
+    // If FUB has no type data, skip type filtering entirely
+    if (!hasTypeData) {
+      // For ISA dashboard, still filter by ISA user even without type data
+      if (dashboardType === 'isa') {
+        let agentId = apt.createdById;
+        if (apt.invitees && apt.invitees.length > 0) {
+          const userInvitee = apt.invitees.find(i => i.userId);
+          if (userInvitee) agentId = userInvitee.userId;
+        }
+        return isaUserIds.includes(agentId);
+      }
+      return true;
+    }
+
     const typeName = apt.type || 'Unknown';
 
     // Must match the appointment type for this dashboard
@@ -143,14 +188,12 @@ async function calculateMetrics(startDate, endDate, userId = null, dashboardType
 
     // For ISA dashboard, also require the agent to be marked as ISA
     if (dashboardType === 'isa') {
-      // Get the user ID from invitees or createdById
       let agentId = apt.createdById;
       if (apt.invitees && apt.invitees.length > 0) {
         const userInvitee = apt.invitees.find(i => i.userId);
         if (userInvitee) agentId = userInvitee.userId;
       }
 
-      // Only include if the agent is marked as ISA
       if (!isaUserIds.includes(agentId)) {
         return false;
       }
